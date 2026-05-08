@@ -1,0 +1,169 @@
+=== TRAINING STARTED: 2026-05-09 00:12:38.638855 ===
+
+STEP 0 | LOSS 4.6011
+----
+SAMPLE:
+
+!l/d7V
+VsT?!sl!*od%h6hHlYuvSCJ4nub,-Ev.JsfJqP1VI4lvHU:zCi(gdVt:NT/g0tO52o UJ,gOxOwuVI6C"'oK3t—P-%FztG-7zqC!/:PK25wfNqjC.W0PMS aBjw%-p=A)jJjj%NG(qzxvB:W6-nvA—McjJJtzb%'A'5Kj/z :H3E5KYWHUOCxwMat4VmmgJul
+====
+
+CHECKPOINT SAVED: model_step_0.pt
+====
+
+STEP 300 | LOSS 2.4244
+----
+SAMPLE:
+
+Hout coue,
+Wanou dir cin'tolt plat id fipainkigre war! coud f I itheng'sabeg)m t.-kashors urs my thas has it ottsetghen.
+7m ay s D.
+Yoveringouhecor woa fyou'ss.
+It woule ake ocan s?
+Ine oede k wSupa w
+====
+
+CHECKPOINT SAVED: model_step_300.pt
+====
+
+STEP 600 | LOSS 2.2233
+----
+SAMPLE:
+
+Id you I'm, I'll to s)en an a vupa senethe theantnank man Sut's the ddoun?
+Hang
+Bnout sur su pat to elye youly.
+Thigere'len!
+The go's, tu my stn angeaton tino theid erstof g!
+Iend shereryout po oun?
+S
+====
+
+CHECKPOINT SAVED: model_step_600.pt
+====
+
+STEP 900 | LOSS 2.0087
+----
+SAMPLE:
+
+seall.
+Home forny bend nat?
+gett for treatse seed.
+Prut yo?
+I K-orsidentse earepfrenter coritno
+es red.
+I mureny wilatuern peallf youzing wh.
+Whe fings, ou the I'cof Marrenand co a sunm rithing rad.
+T
+====
+
+CHECKPOINT SAVED: model_step_900.pt
+====
+
+STEP 1200 | LOSS 1.8465
+----
+SAMPLE:
+
+onoke row ares nel thate that would up dimatainji-tin?
+Anan ublest hean?
+Shave And, out5(ain had oncem, juid.
+I'd you gett now.
+We'll it's a fecanverd an of test worre,
+thate We're that filituike ing 
+====
+
+CHECKPOINT SAVED: model_step_1200.pt
+====
+
+STEP 1500 | LOSS 1.7466
+----
+SAMPLE:
+
+Wokn't you'dn doe you that evatudedenty, noby pard your bacone an thrate I'll and sVoulkin abk bestudent melfor that?
+Ye're tone red, hy abdentner, Hothey?.
+I'm everess. If reselly ass at Mell my my w
+====
+
+CHECKPOINT SAVED: model_step_1500.pt
+====
+
+STEP 1800 | LOSS 1.6126
+----
+SAMPLE:
+
+Se achass.
+Horika this rest to guess to in?
+You?! I minficuld.
+I'm not beret.
+Sorrach.
+I'll acn Pring endience.
+Who someone Past on on is cousten't ounk in levem hows.
+You (om your twe alliss Had, but
+====
+
+CHECKPOINT SAVED: model_step_1800.pt
+====
+
+STEP 2100 | LOSS 1.5664
+----
+SAMPLE:
+
+looke sured form here.
+And I've whan minudeniatepty ways think Amasazemed.
+Heta-sen way're!
+Ye it itxorkally bew risch up of your able talk..
+I'm skitill bettling this whole,
+then?
+What Acooking in ev
+====
+
+CHECKPOINT SAVED: model_step_2100.pt
+====
+
+STEP 2400 | LOSS 1.5149
+----
+SAMPLE:
+
+Yes, ands the bone equalsional.
+I'll be the from fight, huh?
+Well.....
+Of with haven's good.
+Please Tol fee muttlest will a stis it a me ractureses.
+I'm thosed threan, Katizush-morn't doent: jugg.
+Yes
+====
+
+CHECKPOINT SAVED: model_step_2400.pt
+====
+
+STEP 2700 | LOSS 1.4221
+----
+SAMPLE:
+
+I'm you like out, Ayanokoji-senpai, you ame our bapingle to fight?
+It now inticicition at rise. I to will neformate,
+IchiGNoo?
+Fird ace that a, Abe on
+to not
+If you makasad or A Even about countit mic
+====
+
+CHECKPOINT SAVED: model_step_2700.pt
+====
+
+FINAL SAMPLE:
+
+Ichinose that, appart coun the does abot classmally getting thre?
+Yes. It's does. Kan me.
+Whit it here.
+Thing sechoest of second-years a payis,
+Heya! I has Abill your can out?
+I don't you and didn't expect to pain, and big expulsizance day time the same rating than apaid.
+What didn't anything.
+Match...
+To your the will be cure why strongate
+to the person's veness and findrothings
+He' want it's partner will finde to with he with enowgemicaussmed.
+A-Class we your haven't not your sees.
+Thank were 
+====

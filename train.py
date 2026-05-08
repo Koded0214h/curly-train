@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from pathlib import Path
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 from model import TransformerLanguageModel
 
@@ -16,7 +17,7 @@ with open(text_path, "r", encoding="utf-8") as f:
     text = f.read()
 
 # -------------------------
-# TOKENIZER
+# TOKENIZER (char-level)
 # -------------------------
 
 chars = sorted(list(set(text)))
@@ -34,7 +35,7 @@ def decode(tokens):
 data = torch.tensor(encode(text), dtype=torch.long)
 
 # -------------------------
-# SPLIT
+# TRAIN / VAL SPLIT
 # -------------------------
 
 n = int(0.9 * len(data))
@@ -43,11 +44,17 @@ train_data = data[:n]
 val_data = data[n:]
 
 # -------------------------
-# BATCHING
+# HYPERPARAMETERS
 # -------------------------
 
 block_size = 64
 batch_size = 32
+max_iters = 3000
+eval_interval = 300
+
+# -------------------------
+# BATCHING
+# -------------------------
 
 def get_batch(split):
 
@@ -61,7 +68,7 @@ def get_batch(split):
     return x, y
 
 # -------------------------
-# MODEL (Transformer)
+# MODEL
 # -------------------------
 
 model = TransformerLanguageModel(
@@ -75,11 +82,22 @@ model = TransformerLanguageModel(
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 
 # -------------------------
-# TRAINING
+# LOGGING SETUP
 # -------------------------
 
-max_iters = 3000
-eval_interval = 300
+log_file = Path("output.log")
+
+with open(log_file, "w", encoding="utf-8") as f:
+    f.write(f"=== TRAINING STARTED: {datetime.now()} ===\n\n")
+
+
+def log(text):
+    with open(log_file, "a", encoding="utf-8") as f:
+        f.write(text + "\n")
+
+# -------------------------
+# TRAINING LOOP
+# -------------------------
 
 loss_history = []
 
@@ -97,26 +115,64 @@ for iter in range(max_iters):
 
     if iter % eval_interval == 0:
 
-        print(f"step {iter}: loss {loss.item():.4f}")
+        msg = f"STEP {iter} | LOSS {loss.item():.4f}"
+
+        print(msg)
+
+        log(msg)
+        log("----")
 
         loss_history.append(loss.item())
 
+        # -------------------------
+        # GENERATION SAMPLE
+        # -------------------------
+
+        context = torch.zeros((1, 1), dtype=torch.long)
+
+        generated = model.generate(context, max_new_tokens=200)
+
+        sample = decode(generated[0].tolist())
+
+        log("SAMPLE:")
+        log(sample)
+        log("====\n")
+
+        # -------------------------
+        # CHECKPOINT SAVE
+        # -------------------------
+
+        ckpt_path = f"model_step_{iter}.pt"
+
+        torch.save({
+            "model_state": model.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "iter": iter
+        }, ckpt_path)
+
+        log(f"CHECKPOINT SAVED: {ckpt_path}")
+        log("====\n")
+
 # -------------------------
-# GENERATION
+# FINAL GENERATION
 # -------------------------
 
 context = torch.zeros((1, 1), dtype=torch.long)
 
 generated = model.generate(context, max_new_tokens=500)
 
-print("\n--- GENERATED TEXT ---\n")
-print(decode(generated[0].tolist()))
+final_text = decode(generated[0].tolist())
+
+print("\n--- FINAL GENERATED TEXT ---\n")
+print(final_text)
+
+log("FINAL SAMPLE:")
+log(final_text)
+log("====")
 
 # -------------------------
-# VISUALIZATION (LOSS CURVE)
+# LOSS VISUALIZATION
 # -------------------------
-
-plt.figure()
 
 plt.plot(
     [i * eval_interval for i in range(len(loss_history))],
