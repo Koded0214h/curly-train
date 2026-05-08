@@ -1,47 +1,54 @@
 from pathlib import Path
 
-# Load cleaned text
-text_path = Path("processed/dialogue.txt")
+from sentencepiece_tokenizer import SentencePieceTokenizer
 
-with open(text_path, "r", encoding="utf-8") as f:
-    text = f.read()
 
-print("Dataset length:", len(text))
+TEXT_PATH = Path("processed/dialogue.txt")
+MODEL_PATH = Path("tokenizer.model.json")
+DEFAULT_VOCAB_SIZE = 2000
 
-# Get unique characters
-chars = sorted(list(set(text)))
+_tokenizer: SentencePieceTokenizer | None = None
+vocab_size = 0
 
-# Vocabulary size
-vocab_size = len(chars)
 
-print("Vocabulary size:", vocab_size)
-print(chars)
+def build_tokenizer(
+    force_retrain: bool = False,
+    target_vocab_size: int = DEFAULT_VOCAB_SIZE,
+) -> SentencePieceTokenizer:
+    global _tokenizer, vocab_size
 
-# Character → Integer
-stoi = {ch: i for i, ch in enumerate(chars)}
+    if force_retrain or not MODEL_PATH.exists():
+        text = TEXT_PATH.read_text(encoding="utf-8")
+        tokenizer = SentencePieceTokenizer(vocab_size=target_vocab_size)
+        tokenizer.train(text)
+        tokenizer.save(MODEL_PATH)
+    else:
+        tokenizer = SentencePieceTokenizer.load(MODEL_PATH)
 
-# Integer → Character
-itos = {i: ch for i, ch in enumerate(chars)}
+    _tokenizer = tokenizer
+    vocab_size = tokenizer.vocab_size
+    return tokenizer
 
-# Encoder function
-def encode(s):
-    return [stoi[c] for c in s]
 
-# Decoder function
-def decode(tokens):
-    return "".join([itos[t] for t in tokens])
+def get_tokenizer() -> SentencePieceTokenizer:
+    global _tokenizer
 
-# Test
-sample = "Ayanokoji"
+    if _tokenizer is None:
+        _tokenizer = build_tokenizer(force_retrain=False)
 
-encoded = encode(sample)
-decoded = decode(encoded)
+    return _tokenizer
 
-print("\nSample:")
-print(sample)
 
-print("\nEncoded:")
-print(encoded)
+def encode(text: str) -> list[int]:
+    return get_tokenizer().encode(text)
 
-print("\nDecoded:")
-print(decoded)
+
+def decode(tokens) -> str:
+    return get_tokenizer().decode(tokens)
+
+
+def get_vocab_size() -> int:
+    return get_tokenizer().vocab_size
+
+
+build_tokenizer(force_retrain=False)
