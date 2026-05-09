@@ -1,181 +1,203 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-function colorForWord(word, index) {
-  const seed = word.length * 17 + index * 29 + word.charCodeAt(0) * 3;
-  const hue = seed % 360;
-  return new THREE.Color(`hsl(${hue}, 85%, 62%)`);
+const PALETTE = [
+  0x7cf9ff, 0x8f7cff, 0xff7ba8, 0x7bffa8, 0xffd87b,
+  0xff9d7b, 0xb47bff, 0x7bddff, 0xffb07b,
+];
+
+function nodeColor(word, index) {
+  const hash = [...word].reduce((a, c) => a * 31 + c.charCodeAt(0), index * 7);
+  return PALETTE[Math.abs(hash) % PALETTE.length];
+}
+
+function makeLabel(text, color) {
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  ctx.font = "bold 26px Inter, ui-sans-serif, sans-serif";
+  const tw = ctx.measureText(text).width;
+  canvas.width = Math.min(tw + 22, 260);
+  canvas.height = 40;
+  ctx.font = "bold 26px Inter, ui-sans-serif, sans-serif";
+  ctx.fillStyle = "rgba(5, 8, 22, 0.82)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const hex = `#${color.toString(16).padStart(6, "0")}`;
+  ctx.fillStyle = hex;
+  ctx.fillText(text, 10, 29);
+  return canvas;
+}
+
+function fibonacciSphere(n, radius) {
+  const points = [];
+  const golden = Math.PI * (1 + Math.sqrt(5));
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / (n - 1)) * 2;
+    const r = Math.sqrt(1 - y * y);
+    const theta = golden * i;
+    points.push(
+      new THREE.Vector3(
+        r * Math.cos(theta) * radius,
+        y * radius * 0.75,
+        r * Math.sin(theta) * radius,
+      ),
+    );
+  }
+  return points;
 }
 
 export default function Visualizer({ text }) {
   const containerRef = useRef(null);
 
-  const words = useMemo(() => {
-    return text
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 90);
-  }, [text]);
+  const tokens = useMemo(
+    () => text.trim().split(/\s+/).filter(Boolean).slice(0, 64),
+    [text],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {
-      return undefined;
-    }
+    if (!container) return undefined;
 
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    const W = container.clientWidth;
+    const H = container.clientHeight;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x050816, 10, 40);
+    scene.fog = new THREE.FogExp2(0x050816, 0.032);
 
-    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
-    camera.position.set(0, 2.2, 15);
+    const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 200);
+    camera.position.set(0, 4, 24);
+    camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-    });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xb4c6ff, 1.35);
-    scene.add(ambient);
+    scene.add(new THREE.AmbientLight(0xb4c6ff, 0.8));
+    const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+    sun.position.set(10, 14, 8);
+    scene.add(sun);
+    const fill = new THREE.PointLight(0x59e3ff, 1.4, 70);
+    fill.position.set(-12, -6, -10);
+    scene.add(fill);
 
-    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
-    keyLight.position.set(6, 8, 5);
-    scene.add(keyLight);
+    const n = Math.max(tokens.length, 8);
+    const positions = fibonacciSphere(n, 9);
 
-    const rimLight = new THREE.DirectionalLight(0x59e3ff, 1.4);
-    rimLight.position.set(-8, -2, -6);
-    scene.add(rimLight);
-
-    const root = new THREE.Group();
-    scene.add(root);
-
-    const core = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(1.35, 3),
-      new THREE.MeshStandardMaterial({
-        color: 0x84f0ff,
-        metalness: 0.75,
-        roughness: 0.18,
-        emissive: 0x113355,
-        emissiveIntensity: 0.8,
-      }),
-    );
-    root.add(core);
-
-    const halo = new THREE.Mesh(
-      new THREE.TorusGeometry(2.4, 0.08, 16, 120),
-      new THREE.MeshStandardMaterial({
-        color: 0x7df9ff,
-        metalness: 0.3,
-        roughness: 0.1,
-        emissive: 0x2d5cff,
-        emissiveIntensity: 0.45,
-      }),
-    );
-    halo.rotation.x = Math.PI / 2.7;
-    root.add(halo);
-
-    const tokenGroup = new THREE.Group();
-    root.add(tokenGroup);
-
-    const particles = [];
-    const total = Math.max(words.length, 12);
-
-    for (let i = 0; i < total; i += 1) {
-      const word = words[i] || `token-${i}`;
-      const radius = 0.16 + Math.min(word.length, 16) * 0.02;
-      const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 24, 24),
-        new THREE.MeshStandardMaterial({
-          color: colorForWord(word, i),
-          metalness: 0.65,
-          roughness: 0.22,
-          emissive: colorForWord(word, i).clone().multiplyScalar(0.24),
-          emissiveIntensity: 0.65,
-        }),
-      );
-
-      const angle = i * 0.42;
-      const height = (i - total / 2) * 0.22;
-      const ring = 3.6 + (i % 5) * 0.18;
-
-      mesh.position.set(
-        Math.cos(angle) * ring,
-        height,
-        Math.sin(angle) * ring * 0.62,
-      );
-
-      tokenGroup.add(mesh);
-      particles.push({ mesh, angle, height, ring });
+    // sequential edges
+    const seqMat = new THREE.LineBasicMaterial({ color: 0x2a5070, transparent: true, opacity: 0.5 });
+    for (let i = 0; i < n - 1; i++) {
+      const geo = new THREE.BufferGeometry().setFromPoints([positions[i], positions[i + 1]]);
+      scene.add(new THREE.Line(geo, seqMat));
     }
 
-    const grid = new THREE.GridHelper(18, 24, 0x24507d, 0x102238);
-    grid.position.y = -4.2;
+    // cross-edges: same first-3-chars tokens (vocabulary clustering)
+    const crossMat = new THREE.LineBasicMaterial({ color: 0x7cf9ff, transparent: true, opacity: 0.22 });
+    for (let i = 0; i < tokens.length; i++) {
+      for (let j = i + 2; j < tokens.length; j++) {
+        if (
+          tokens[i].slice(0, 3).toLowerCase() === tokens[j].slice(0, 3).toLowerCase()
+          && tokens[i].length > 2
+        ) {
+          const geo = new THREE.BufferGeometry().setFromPoints([positions[i], positions[j]]);
+          scene.add(new THREE.Line(geo, crossMat));
+          break;
+        }
+      }
+    }
+
+    // nodes + labels
+    const nodeGroup = new THREE.Group();
+    scene.add(nodeGroup);
+    const nodeMeshes = [];
+
+    for (let i = 0; i < n; i++) {
+      const word = tokens[i] || `t${i}`;
+      const color = nodeColor(word, i);
+      const radius = 0.2 + Math.min(word.length, 12) * 0.016;
+
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 22, 22),
+        new THREE.MeshStandardMaterial({
+          color,
+          emissive: color,
+          emissiveIntensity: 0.4,
+          metalness: 0.55,
+          roughness: 0.22,
+        }),
+      );
+      mesh.position.copy(positions[i]);
+      nodeGroup.add(mesh);
+      nodeMeshes.push(mesh);
+
+      const canvas = makeLabel(word, color);
+      const tex = new THREE.CanvasTexture(canvas);
+      const sprite = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.9, depthTest: false }),
+      );
+      sprite.scale.set(canvas.width / 52, canvas.height / 52, 1);
+      sprite.position.copy(positions[i]);
+      sprite.position.y += radius + 0.52;
+      scene.add(sprite);
+    }
+
+    // grid
+    const grid = new THREE.GridHelper(36, 22, 0x1a3a5c, 0x0c1e30);
+    grid.position.y = -9;
     scene.add(grid);
 
     const onResize = () => {
-      const nextWidth = container.clientWidth;
-      const nextHeight = container.clientHeight;
-      camera.aspect = nextWidth / nextHeight;
+      const nw = container.clientWidth;
+      const nh = container.clientHeight;
+      camera.aspect = nw / nh;
       camera.updateProjectionMatrix();
-      renderer.setSize(nextWidth, nextHeight);
+      renderer.setSize(nw, nh);
     };
-
     window.addEventListener("resize", onResize);
 
     let frame = 0;
+    let rafId;
+
     const animate = () => {
-      frame += 1;
-      const t = frame * 0.012;
+      frame++;
+      const t = frame * 0.007;
 
-      root.rotation.y = t * 0.32;
-      root.rotation.x = Math.sin(t * 0.2) * 0.08;
-      halo.rotation.z = t * 0.38;
-      core.rotation.x += 0.008;
-      core.rotation.y += 0.012;
+      // orbit camera
+      camera.position.x = Math.sin(t * 0.28) * 24;
+      camera.position.z = Math.cos(t * 0.28) * 24;
+      camera.position.y = 4 + Math.sin(t * 0.11) * 2.5;
+      camera.lookAt(0, 0, 0);
 
-      particles.forEach(({ mesh, angle, height, ring }, index) => {
-        const wobble = Math.sin(t * 1.2 + index * 0.45) * 0.28;
-        mesh.position.x = Math.cos(angle + t * 0.35) * (ring + wobble);
-        mesh.position.y = height + Math.sin(t + index) * 0.16;
-        mesh.position.z = Math.sin(angle + t * 0.35) * (ring * 0.62 + wobble * 0.42);
-        mesh.rotation.x += 0.01;
-        mesh.rotation.y += 0.015;
+      // node breathe
+      nodeMeshes.forEach((mesh, i) => {
+        const s = 1 + 0.06 * Math.sin(t * 1.8 + i * 0.65);
+        mesh.scale.setScalar(s);
       });
 
       renderer.render(scene, camera);
-      requestId = requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
     };
 
-    let requestId = requestAnimationFrame(animate);
+    rafId = requestAnimationFrame(animate);
 
     return () => {
-      cancelAnimationFrame(requestId);
+      cancelAnimationFrame(rafId);
       window.removeEventListener("resize", onResize);
-      scene.traverse((object) => {
-        if (object.geometry) {
-          object.geometry.dispose();
-        }
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach((material) => material.dispose());
+      scene.traverse((o) => {
+        o.geometry?.dispose();
+        if (o.material) {
+          if (Array.isArray(o.material)) {
+            o.material.forEach((m) => { m.map?.dispose(); m.dispose(); });
           } else {
-            object.material.dispose();
+            o.material.map?.dispose();
+            o.material.dispose();
           }
         }
       });
       renderer.dispose();
       container.innerHTML = "";
     };
-  }, [words]);
+  }, [tokens]);
 
   return <div ref={containerRef} className="visualizer-shell" />;
 }
-
