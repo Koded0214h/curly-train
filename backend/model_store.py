@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from functools import lru_cache
 import glob
+import json
 import re
 from pathlib import Path
 
@@ -149,3 +150,64 @@ def generate_text(
         "device": str(device),
     }
 
+
+def stream_generation(
+    prompt: str,
+    max_new_tokens: int = 120,
+    temperature: float = 0.8,
+    top_k: int = 50,
+):
+    bundle = load_bundle()
+    tokenizer = bundle["tokenizer"]
+    model = bundle["model"]
+    device = bundle["device"]
+    checkpoint_path = bundle["checkpoint_path"]
+    config = bundle["config"]
+
+    prompt_ids = tokenizer.encode(prompt)
+    if not prompt_ids:
+        prompt_ids = [0]
+
+    idx = torch.tensor([prompt_ids], dtype=torch.long, device=device)
+    generated_ids = list(prompt_ids)
+    prompt_text = tokenizer.decode(prompt_ids)
+    previous_text = prompt_text
+
+    yield {
+        "type": "start",
+        "checkpoint": checkpoint_path.name,
+        "config": asdict(config),
+        "prompt": prompt,
+        "prompt_token_count": len(prompt_ids),
+        "device": str(device),
+    }
+
+    for next_idx, idx in model.generate_stream(
+        idx,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        top_k=top_k,
+    ):
+        generated_ids.append(int(next_idx.item()))
+        full_text = tokenizer.decode(generated_ids)
+        delta = full_text[len(previous_text) :]
+        previous_text = full_text
+
+        yield {
+            "type": "token",
+            "token_id": int(next_idx.item()),
+            "generated_token_count": len(generated_ids),
+            "full_text": full_text,
+            "delta": delta,
+            "continuation_text": full_text[len(prompt_text) :],
+            "token_ids": generated_ids.copy(),
+        }
+
+    yield {
+        "type": "done",
+        "checkpoint": checkpoint_path.name,
+        "config": asdict(config),
+        "generated_token_count": len(generated_ids),
+        "full_text": tokenizer.decode(generated_ids),
+        "token_ids": generated_ids,
+    }

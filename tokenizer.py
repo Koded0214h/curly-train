@@ -3,8 +3,9 @@ from pathlib import Path
 from sentencepiece_tokenizer import SentencePieceTokenizer
 
 
-TEXT_PATH = Path("processed/dialogue.txt")
-MODEL_PATH = Path("tokenizer.model.json")
+ROOT = Path(__file__).resolve().parent
+TEXT_PATH = ROOT / "processed" / "dialogue.txt"
+MODEL_PATH = ROOT / "tokenizer.model.json"
 DEFAULT_VOCAB_SIZE = 2000
 
 _tokenizer: SentencePieceTokenizer | None = None
