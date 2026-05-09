@@ -7,10 +7,32 @@ import tokenizer as tok
 from model import TransformerLanguageModel
 
 # -------------------------
-# TRAIN TOKENIZER
+# DEVICE SETUP
 # -------------------------
 
-tokenizer = tok.build_tokenizer(force_retrain=True, target_vocab_size=2000)
+print("CUDA available:", torch.cuda.is_available())
+print("MPS available (Mac GPU):", torch.backends.mps.is_available())
+
+if torch.backends.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = torch.device("cpu")
+
+print("Using device:", device)
+
+# optional speed tweak
+try:
+    torch.set_float32_matmul_precision("high")
+except:
+    pass
+
+# -------------------------
+# TOKENIZER
+# -------------------------
+
+tokenizer = tok.build_tokenizer(target_vocab_size=2000)
 
 # -------------------------
 # LOAD DATA
@@ -22,14 +44,10 @@ with open(text_path, "r", encoding="utf-8") as f:
     text = f.read()
 
 # -------------------------
-# ENCODE DATA
+# ENCODE DATA (KEEP ON CPU)
 # -------------------------
 
 data = torch.tensor(tokenizer.encode(text), dtype=torch.long)
-
-# -------------------------
-# TRAIN / VAL SPLIT
-# -------------------------
 
 n = int(0.9 * len(data))
 train_data = data[:n]
@@ -39,13 +57,21 @@ val_data = data[n:]
 # HYPERPARAMETERS
 # -------------------------
 
-block_size = 64
-batch_size = 32
+block_size = 128
+batch_size = 32 if device.type != "cpu" else 16
+
 max_iters = 3000
 eval_interval = 300
 
+embed_size = 256
+num_layers = 4
+num_heads = 8
+
+temperature = 0.8
+top_k = 50
+
 # -------------------------
-# BATCHING
+# BATCHING (FIXED)
 # -------------------------
 
 def get_batch(split):
@@ -56,7 +82,7 @@ def get_batch(split):
     x = torch.stack([data_source[i:i+block_size] for i in ix])
     y = torch.stack([data_source[i+1:i+block_size+1] for i in ix])
 
-    return x, y
+    return x.to(device), y.to(device)
 
 # -------------------------
 # MODEL
@@ -64,11 +90,11 @@ def get_batch(split):
 
 model = TransformerLanguageModel(
     vocab_size=tokenizer.vocab_size,
-    embed_size=128,
+    embed_size=embed_size,
     block_size=block_size,
-    num_layers=2,
-    num_heads=4
-)
+    num_layers=num_layers,
+    num_heads=num_heads
+).to(device)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 
@@ -81,9 +107,9 @@ log_file = Path("output.log")
 with open(log_file, "w", encoding="utf-8") as f:
     f.write(f"=== TRAINING STARTED: {datetime.now()} ===\n\n")
 
-def log(text):
+def log(msg):
     with open(log_file, "a", encoding="utf-8") as f:
-        f.write(text + "\n")
+        f.write(msg + "\n")
 
 # -------------------------
 # TRAINING LOOP
@@ -104,7 +130,7 @@ for step in range(max_iters):
     optimizer.step()
 
     # -------------------------
-    # LOGGING + CHECKPOINTING
+    # EVAL + LOGGING
     # -------------------------
 
     if step % eval_interval == 0:
@@ -121,9 +147,15 @@ for step in range(max_iters):
         # GENERATION SAMPLE
         # -------------------------
 
-        context = torch.zeros((1, 1), dtype=torch.long)
+        context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
-        generated = model.generate(context, max_new_tokens=200)
+        with torch.no_grad():
+            generated = model.generate(
+                context,
+                max_new_tokens=200,
+                temperature=temperature,
+                top_k=top_k,
+            )
 
         sample = tokenizer.decode(generated[0].tolist())
 
@@ -132,7 +164,7 @@ for step in range(max_iters):
         log("====\n")
 
         # -------------------------
-        # SAVE CHECKPOINT
+        # CHECKPOINT
         # -------------------------
 
         ckpt_path = f"model_step_{step}.pt"
@@ -150,9 +182,15 @@ for step in range(max_iters):
 # FINAL GENERATION
 # -------------------------
 
-context = torch.zeros((1, 1), dtype=torch.long)
+context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
-generated = model.generate(context, max_new_tokens=500)
+with torch.no_grad():
+    generated = model.generate(
+        context,
+        max_new_tokens=500,
+        temperature=temperature,
+        top_k=top_k,
+    )
 
 final_text = tokenizer.decode(generated[0].tolist())
 
@@ -163,17 +201,17 @@ log("FINAL SAMPLE:")
 log(final_text)
 log("====")
 
-# -------------------------
-# LOSS PLOT
-# -------------------------
+# # -------------------------
+# # LOSS CURVE
+# # -------------------------
 
-plt.plot(
-    [i * eval_interval for i in range(len(loss_history))],
-    loss_history
-)
+# plt.plot(
+#     [i * eval_interval for i in range(len(loss_history))],
+#     loss_history
+# )
 
-plt.title("Training Loss Curve")
-plt.xlabel("Steps")
-plt.ylabel("Loss")
+# plt.title("Training Loss Curve")
+# plt.xlabel("Steps")
+# plt.ylabel("Loss")
 
-plt.show()
+# plt.show()

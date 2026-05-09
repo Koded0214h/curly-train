@@ -103,7 +103,9 @@ class TransformerLanguageModel(nn.Module):
         return logits, loss
 
     @torch.no_grad()
-    def generate(self, idx, max_new_tokens):
+    def generate(self, idx, max_new_tokens, temperature=1.0, top_k=None):
+        if temperature <= 0:
+            raise ValueError("temperature must be greater than 0")
 
         for _ in range(max_new_tokens):
 
@@ -112,6 +114,17 @@ class TransformerLanguageModel(nn.Module):
             logits, _ = self(idx_cond)
 
             logits = logits[:, -1, :]
+            logits = logits / temperature
+
+            if top_k is not None:
+                top_k = min(top_k, logits.size(-1))
+                topk_values, _ = torch.topk(logits, top_k)
+                cutoff = topk_values[:, -1].unsqueeze(-1)
+                logits = torch.where(
+                    logits < cutoff,
+                    torch.full_like(logits, float("-inf")),
+                    logits,
+                )
 
             probs = F.softmax(logits, dim=-1)
 

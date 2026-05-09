@@ -17,7 +17,12 @@ def build_tokenizer(
 ) -> SentencePieceTokenizer:
     global _tokenizer, vocab_size
 
-    if force_retrain or not MODEL_PATH.exists():
+    should_retrain = force_retrain or not MODEL_PATH.exists()
+
+    if not should_retrain and TEXT_PATH.exists():
+        should_retrain = TEXT_PATH.stat().st_mtime > MODEL_PATH.stat().st_mtime
+
+    if should_retrain:
         text = TEXT_PATH.read_text(encoding="utf-8")
         tokenizer = SentencePieceTokenizer(vocab_size=target_vocab_size)
         tokenizer.train(text)
